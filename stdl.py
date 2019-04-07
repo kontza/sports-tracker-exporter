@@ -126,15 +126,17 @@ def get_list(args, session, output_filepath):
 def process_workout_list(args, session, workout_list):
     with open(workout_list, 'r') as workouts_file:
         workouts = json.load(workouts_file)
+        counter = 1
         for workout in workouts:
             timestamp = datetime.datetime.fromtimestamp(int(workout['startTime'] / 1000))
-            logger.info('Workout from {}: {}.'.format(timestamp, workout['workoutKey']))
+            logger.info('Workout {}/{} from {}: {}.'.format(counter, len(workouts), timestamp, workout['workoutKey']))
             download_workout(args,
                              session,
                              os.path.split(workout_list)[0],
                              timestamp,
                              workout['workoutKey'],
                              workout['activityId'])
+            counter += 1
 
 
 def login(args, session):
