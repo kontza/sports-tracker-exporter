@@ -20,6 +20,57 @@ except:
 logging.basicConfig(format='%(asctime)-15s %(levelname)7s %(message)s', level=logging.INFO)
 logger = logging.getLogger(os.path.splitext(os.path.split(__file__)[-1])[0])
 workout_list = 'workouts.stdl'
+activities = [
+    "Walking",
+    "Running",
+    "Cycling",
+    "Nordic_skiing",
+    "Other_1",
+    "Other_2",
+    "Other_3",
+    "Other_4",
+    "Other_5",
+    "Other_6",
+    "Mountain_biking",
+    "Hiking",
+    "Roller_skating",
+    "Downhill_skiing",
+    "Paddling",
+    "Rowing",
+    "Golf",
+    "Indoor",
+    "Parkour",
+    "Ball_games",
+    "Outdoor_gym",
+    "Swimming",
+    "Trail_running",
+    "Gym",
+    "Nordic_walking",
+    "Horseback_riding",
+    "Motorsports",
+    "Skateboarding",
+    "Water_sports",
+    "Climbing",
+    "Snowboarding",
+    "Ski_touring",
+    "Fitness_class",
+    "Soccer",
+    "Tennis",
+    "Basketball",
+    "Badminton",
+    "Baseball",
+    "Volleyball",
+    "American_football",
+    "Table_tennis",
+    "Racquet_ball",
+    "Squash",
+    "Floorball",
+    "Handball",
+    "Softball",
+    "Bowling",
+    "Cricket",
+    "Rugby"
+]
 
 
 class VerboseAction(argparse.Action):
@@ -34,7 +85,7 @@ class VerboseAction(argparse.Action):
         logger.debug('Logging verbosely.')
 
 
-def download_workout(args, session, output_dir, timestamp, workout_key):
+def download_workout(args, session, output_dir, timestamp, workout_key, activity_id):
     url = 'https://sports-tracker.com/apiserver/v1/workout/exportFit/{}'.format(workout_key)
     token = None
     try:
@@ -45,8 +96,8 @@ def download_workout(args, session, output_dir, timestamp, workout_key):
         token = session.headers['sttauthorization']
     logger.info('Downloading workout from {}...'.format(timestamp))
     req = session.get(url, params={'token': token})
-    output_filepath = os.path.join(output_dir, '{}.fit'.format(
-        timestamp.isoformat().replace('T', '_').replace(':', '_')))
+    output_filepath = os.path.join(output_dir, '{}-{}.fit'.format(
+        timestamp.isoformat().replace('T', '_').replace(':', '_'), activities[activity_id]))
     with open(output_filepath, 'wb') as output_file:
         output_file.write(io.BytesIO(req.content).read())
         logger.info("Workout saved to '{}'.".format(output_filepath))
@@ -70,7 +121,12 @@ def process_workout_list(args, session, workout_list):
         for workout in workouts:
             timestamp = datetime.datetime.fromtimestamp(int(workout['startTime'] / 1000))
             logger.info('Workout from {}: {}.'.format(timestamp, workout['workoutKey']))
-            download_workout(args, session, os.path.split(workout_list)[0], timestamp, workout['workoutKey'])
+            download_workout(args,
+                             session,
+                             os.path.split(workout_list)[0],
+                             timestamp,
+                             workout['workoutKey'],
+                             workout['activityId'])
 
 
 def login(args, session):
