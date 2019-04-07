@@ -96,8 +96,14 @@ def download_workout(args, session, output_dir, timestamp, workout_key, activity
         token = session.headers['sttauthorization']
     logger.info('Downloading workout from {}...'.format(timestamp))
     req = session.get(url, params={'token': token})
+    activity_name = ''
+    try:
+        activity_name = activities[activity_id]
+    except:
+        logger.error('Activity {} not in the predefined list.'.format(activity_id))
+        activity_name = workout_key
     output_filepath = os.path.join(output_dir, '{}-{}.fit'.format(
-        timestamp.isoformat().replace('T', '_').replace(':', '_'), activities[activity_id]))
+        timestamp.isoformat().replace('T', '_').replace(':', '_'), activity_name))
     with open(output_filepath, 'wb') as output_file:
         output_file.write(io.BytesIO(req.content).read())
         logger.info("Workout saved to '{}'.".format(output_filepath))
