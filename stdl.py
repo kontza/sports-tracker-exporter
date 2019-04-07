@@ -2,6 +2,7 @@
 import argparse
 import datetime
 import getpass
+import io
 import json
 import logging
 import os
@@ -33,9 +34,22 @@ class VerboseAction(argparse.Action):
         logger.debug('Logging verbosely.')
 
 
-def download_workout(args, session, workout_key):
-    'https://sports-tracker.com/apiserver/v1/workout/exportGpx/55db4fc1e4b094b778d42ed5?token=e78qo9jpe61f87p9d2baa1eq82qv60ui'
-    pass
+def download_workout(args, session, output_dir, timestamp, workout_key):
+    url = 'https://sports-tracker.com/apiserver/v1/workout/exportFit/{}'.format(workout_key)
+    token = None
+    try:
+        token = session.headers['sttauthorization']
+    except KeyError:
+        logger.info('sttauthorization not found in session, not logged in.')
+        login(args, session)
+        token = session.headers['sttauthorization']
+    logger.info('Downloading workout from {}...'.format(timestamp))
+    req = session.get(url, params={'token': token})
+    output_filepath = os.path.join(output_dir, '{}.fit'.format(
+        timestamp.isoformat().replace('T', '_').replace(':', '_')))
+    with open(output_filepath, 'wb') as output_file:
+        output_file.write(io.BytesIO(req.content).read())
+        logger.info("Workout saved to '{}'.".format(output_filepath))
 
 
 def get_list(args, session, output_filepath):
@@ -45,28 +59,45 @@ def get_list(args, session, output_filepath):
     if req.status_code >= 200 and req.status_code < 300:
         logger.info('Workouts ({}) loaded...'.format(len(req.json()['payload'])))
         with open(output_filepath, 'w') as output_file:
-            json.dump(req.json(), output_file, ensure_ascii=False, indent=2)
+            json.dump(req.json()['payload'], output_file, ensure_ascii=False)
     else:
         logger.error('Failed to get the workout list: {} {}'.format(req.status_code, req.text))
 
 
+def process_workout_list(args, session, workout_list):
+    with open(workout_list, 'r') as workouts_file:
+        workouts = json.load(workouts_file)
+        for workout in workouts:
+            timestamp = datetime.datetime.fromtimestamp(int(workout['startTime'] / 1000))
+            logger.info('Workout from {}: {}.'.format(timestamp, workout['workoutKey']))
+            download_workout(args, session, os.path.split(workout_list)[0], timestamp, workout['workoutKey'])
+
+
+def login(args, session):
+    logger.info('Logging in to Sports Tracker.')
+    url = 'https://sports-tracker.com/apiserver/v1/login'
+    args.password = getpass.getpass('Enter your Sports Tracker password: ')
+    req = session.post(url, params={'source': 'javascript'}, data={'l': args.user, 'p': args.password})
+    ret_val = False
+    if req.status_code >= 200 and req.status_code < 300:
+        logger.info('Welcome {}.'.format(req.json()['realName']))
+        logger.debug("Response: {}".format(req.json()))
+        session.headers.update({'sttauthorization': req.json()['userKey']})
+        ret_val = True
+    return ret_val
+
+
 def run(args):
-    output_filepath = os.path.join(args.directory, workout_list)
-    if os.path.exists(output_filepath):
-        logger.info("Workouts list ({}) already exists, using it instead of downloading a new one.".format(output_filepath))
+    workouts_filepath = os.path.join(args.directory, workout_list)
+    session = requests.Session()
+    if os.path.exists(workouts_filepath):
+        logger.info("Workouts list ({}) already exists, using it instead of downloading a new one.".format(workouts_filepath))
     else:
-        logger.info('Logging in to Sports Tracker.')
-        url = 'https://sports-tracker.com/apiserver/v1/login'
-        password = getpass.getpass('Enter your Sports Tracker password: ')
-        session = requests.Session()
-        req = session.post(url, params={'source': 'javascript'}, data={'l': args.user, 'p': password})
-        if req.status_code >= 200 and req.status_code < 300:
-            logger.info('Welcome {}.'.format(req.json()['realName']))
-            logger.debug("Response: {}".format(req.json()))
-            session.headers.update({'sttauthorization': req.json()['userKey']})
-            get_list(args, session, output_filepath)
+        if login(args, session):
+            get_list(args, session, workouts_filepath)
         else:
             logger.error('Login failed: {} {}'.format(req.status_code, req.text))
+    process_workout_list(args, session, workouts_filepath)
 
 
 if __name__ == '__main__':
