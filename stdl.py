@@ -92,8 +92,10 @@ def download_workout(args, session, output_dir, timestamp, workout_key, activity
         token = session.headers['sttauthorization']
     except KeyError:
         logger.info('sttauthorization not found in session, not logged in.')
-        login(args, session)
-        token = session.headers['sttauthorization']
+        if login(args, session):
+            token = session.headers['sttauthorization']
+        else:
+            return
     logger.info('Downloading workout from {}...'.format(timestamp))
     req = session.get(url, params={'token': token})
     activity_name = ''
@@ -146,6 +148,8 @@ def login(args, session):
         logger.debug("Response: {}".format(req.json()))
         session.headers.update({'sttauthorization': req.json()['userKey']})
         ret_val = True
+    else:
+        logger.error('Login failed: {} {}'.format(req.status_code, req.text))
     return ret_val
 
 
