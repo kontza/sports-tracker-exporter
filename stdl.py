@@ -163,8 +163,6 @@ def run(args):
     else:
         if login(args, session):
             get_list(args, session, workouts_filepath)
-        else:
-            logger.error('Login failed: {} {}'.format(req.status_code, req.text))
     process_workout_list(args, session, workouts_filepath)
 
 
