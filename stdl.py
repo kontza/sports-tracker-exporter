@@ -1,75 +1,68 @@
 #!/usr/bin/env python3
 import argparse
 import datetime
+import dotenv
 import getpass
 import io
 import json
 import logging
 import os
 import os.path
-import sys
-
-try:
-    import requests
-except:
-    print('''You need to pip install requests:
-
-    $ pip3 install --user --upgrade requests''')
-    sys.exit(1)
+import requests
 
 logging.basicConfig(format='%(asctime)-15s %(levelname)7s %(message)s', level=logging.INFO)
 logger = logging.getLogger(os.path.splitext(os.path.split(__file__)[-1])[0])
 workout_list = 'workouts.stdl'
 activities = [
-    "Walking",
-    "Running",
-    "Cycling",
-    "Nordic_skiing",
-    "Other_1",
-    "Other_2",
-    "Other_3",
-    "Other_4",
-    "Other_5",
-    "Other_6",
-    "Mountain_biking",
-    "Hiking",
-    "Roller_skating",
-    "Downhill_skiing",
-    "Paddling",
-    "Rowing",
-    "Golf",
-    "Indoor",
-    "Parkour",
-    "Ball_games",
-    "Outdoor_gym",
-    "Swimming",
-    "Trail_running",
-    "Gym",
-    "Nordic_walking",
-    "Horseback_riding",
-    "Motorsports",
-    "Skateboarding",
-    "Water_sports",
-    "Climbing",
-    "Snowboarding",
-    "Ski_touring",
-    "Fitness_class",
-    "Soccer",
-    "Tennis",
-    "Basketball",
-    "Badminton",
-    "Baseball",
-    "Volleyball",
-    "American_football",
-    "Table_tennis",
-    "Racquet_ball",
-    "Squash",
-    "Floorball",
-    "Handball",
-    "Softball",
-    "Bowling",
-    "Cricket",
-    "Rugby"
+    'Walking',
+    'Running',
+    'Cycling',
+    'Nordic_skiing',
+    'Other_1',
+    'Other_2',
+    'Other_3',
+    'Other_4',
+    'Other_5',
+    'Other_6',
+    'Mountain_biking',
+    'Hiking',
+    'Roller_skating',
+    'Downhill_skiing',
+    'Paddling',
+    'Rowing',
+    'Golf',
+    'Indoor',
+    'Parkour',
+    'Ball_games',
+    'Outdoor_gym',
+    'Swimming',
+    'Trail_running',
+    'Gym',
+    'Nordic_walking',
+    'Horseback_riding',
+    'Motorsports',
+    'Skateboarding',
+    'Water_sports',
+    'Climbing',
+    'Snowboarding',
+    'Ski_touring',
+    'Fitness_class',
+    'Soccer',
+    'Tennis',
+    'Basketball',
+    'Badminton',
+    'Baseball',
+    'Volleyball',
+    'American_football',
+    'Table_tennis',
+    'Racquet_ball',
+    'Squash',
+    'Floorball',
+    'Handball',
+    'Softball',
+    'Bowling',
+    'Cricket',
+    'Rugby'
 ]
 
 
@@ -142,12 +135,13 @@ def process_workout_list(args, session, workout_list):
 def login(args, session):
     logger.info('Logging in to Sports Tracker.')
     url = 'https://sports-tracker.com/apiserver/v1/login'
-    args.password = getpass.getpass('Enter your Sports Tracker password: ')
+    if not args.password:
+        args.password = getpass.getpass('Enter your Sports Tracker password: ')
     req = session.post(url, params={'source': 'javascript'}, data={'l': args.user, 'p': args.password})
     ret_val = False
     if req.status_code >= 200 and req.status_code < 300:
         logger.info('Welcome {}.'.format(req.json()['realName']))
-        logger.debug("Response: {}".format(req.json()))
+        logger.debug('Response: {}'.format(req.json()))
         session.headers.update({'sttauthorization': req.json()['userKey']})
         ret_val = True
     else:
@@ -159,7 +153,7 @@ def run(args):
     workouts_filepath = os.path.join(args.directory, workout_list)
     session = requests.Session()
     if os.path.exists(workouts_filepath):
-        logger.info("Workouts list ({}) already exists, using it instead of downloading a new one.".format(workouts_filepath))
+        logger.info('Workouts list ({}) already exists, using it instead of downloading a new one.'.format(workouts_filepath))
     else:
         if login(args, session):
             get_list(args, session, workouts_filepath)
@@ -167,13 +161,15 @@ def run(args):
 
 
 if __name__ == '__main__':
+    dotenv.load_dotenv()
     parser = argparse.ArgumentParser(description='Download excercises from Sports Tracker.')
     parser.add_argument('-v', '--verbose', help='increase output verbosity', action=VerboseAction)
     parser.add_argument('-d', '--directory', default=os.getcwd(), help='the directory where to store exported files')
-    parser.add_argument('user', help='the user to log in as')
+    parser.add_argument('-u', '--user', help='the user to log in as', default=os.getenv('SPORTS_TRACKER_USERNAME'))
     args = parser.parse_args()
     if not os.path.exists(args.directory):
         logger.error("Output directory '{}' does not exist, cannot continue".format(args.directory))
         exit()
+    args.password = os.getenv('SPORTS_TRACKER_PASSWORD')
     run(args)
     logger.info('All done, TTFN.')
