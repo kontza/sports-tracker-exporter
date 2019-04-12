@@ -2,3 +2,4 @@ curl-tests.sh
 pois
 .env
 output
+venv
